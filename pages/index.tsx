@@ -28,7 +28,6 @@ export default function HomePage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Instead of updating state, navigate to the search page with query params
         router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
       } else {
         setError(data.error || 'An unexpected error occurred');
@@ -38,6 +37,10 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleTryAsking = (question: string) => {
+    setSearchQuery(question);
   };
 
   return (
@@ -96,15 +99,27 @@ export default function HomePage() {
               <div className="mt-8">
                 <h2 className="text-xl font-semibold mb-4">Try asking</h2>
                 <div className="space-y-4">
-                  <Button variant="outline" className="w-full justify-start text-left">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left"
+                    onClick={() => handleTryAsking("How do I find alumni working in tech startups?")}
+                  >
                     <span className="bg-yellow-100 text-yellow-800 p-1 rounded mr-2">💼</span>
                     How do I find alumni working in tech startups?
                   </Button>
-                  <Button variant="outline" className="w-full justify-start text-left">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left"
+                    onClick={() => handleTryAsking("Can you recommend alumni mentors in data science?")}
+                  >
                     <span className="bg-green-100 text-green-800 p-1 rounded mr-2">🏆</span>
                     Can you recommend alumni mentors in data science?
                   </Button>
-                  <Button variant="outline" className="w-full justify-start text-left">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left"
+                    onClick={() => handleTryAsking("How do I connect with alumni for career advice?")}
+                  >
                     <span className="bg-red-100 text-red-800 p-1 rounded mr-2">📢</span>
                     How do I connect with alumni for career advice?
                   </Button>
