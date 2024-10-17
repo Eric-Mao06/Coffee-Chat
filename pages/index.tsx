@@ -1,10 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Home, Users } from 'lucide-react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import Layout from '../components/Layout';
+import AlumniCard from '../components/AlumniCard';
+import { AlumniProfile } from '../types';
 
 export default function HomePage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<AlumniProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setError('Please enter a search query');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setSearchResults(data.data);
+      } else {
+        setError(data.error || 'An unexpected error occurred');
+      }
+    } catch (err) {
+      setError('Failed to fetch search results');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto mt-8 px-4">
@@ -32,11 +64,31 @@ export default function HomePage() {
                   type="text" 
                   placeholder="Ask anything..." 
                   className="pl-10 pr-4 py-2 w-full text-lg"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Button className="absolute right-2 top-1/2 transform -translate-y-1/2" size="sm">
-                  Ask
+                <Button 
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2" 
+                  size="sm"
+                  onClick={handleSearch}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Searching...' : 'Ask'}
                 </Button>
               </div>
+
+              {error && <p className="text-red-500 mt-2">{error}</p>}
+
+              {searchResults.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-2xl font-semibold mb-4">Search Results</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {searchResults.map((alumni) => (
+                      <AlumniCard key={alumni.id} alumni={alumni} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-8">
                 <h2 className="text-xl font-semibold mb-4">Try asking</h2>
