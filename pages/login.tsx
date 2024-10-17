@@ -19,7 +19,7 @@ export default function Login() {
       if (error) throw error;
       router.push('/');
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
     }
   };
 

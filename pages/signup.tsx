@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
-import { generate_embedding } from '../lib/embeddings';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -29,7 +28,6 @@ export default function SignUp() {
 
       // Generate embedding based on interests
       const interestsText = interests.split(',').map(i => i.trim()).join(', ');
-      const embedding = await generate_embedding(interestsText);
 
       const { data: profileData, error: profileError } = await supabase
         .from('alumni_profiles')
@@ -44,7 +42,6 @@ export default function SignUp() {
             interests: interests.split(',').map(i => i.trim()),
             hobbies: hobbies.split(',').map(h => h.trim()),
             contact_info,
-            embedding: embedding,
           },
         ]);
 
@@ -54,7 +51,7 @@ export default function SignUp() {
       router.push('/login');
     } catch (error) {
       console.error('Signup error:', error);
-      setError(error.message || 'An unexpected error occurred during signup');
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred during signup');
     }
   };
 
