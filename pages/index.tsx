@@ -5,8 +5,10 @@ import { Button } from "../components/ui/button";
 import Layout from '../components/Layout';
 import AlumniCard from '../components/AlumniCard';
 import { AlumniProfile } from '../types';
+import { useRouter } from 'next/router';
 
 export default function HomePage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<AlumniProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +28,8 @@ export default function HomePage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSearchResults(data.data);
+        // Instead of updating state, navigate to the search page with query params
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
       } else {
         setError(data.error || 'An unexpected error occurred');
       }
