@@ -61,7 +61,7 @@ export default function HomePage() {
           </aside>
 
           <main className="flex-1">
-            <h1 className="text-4xl font-bold text-center mb-8">Ask a question, get an expert</h1>
+            <h1 className="text-4xl font-bold text-center mb-8">Find and be Found</h1>
             
             <div className="max-w-2xl mx-auto">
               <div className="relative">

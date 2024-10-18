@@ -21,8 +21,8 @@ export default function AlumniCard({ alumni }: AlumniCardProps) {
           ))}
         </div>
       </div>
-      <Link href={`/profile/${alumni.id}`}>
-        <a className="text-blue-600 hover:text-blue-800">View Full Profile</a>
+      <Link href={`/profile/${alumni.id}`} className="text-blue-600 hover:text-blue-800">
+        View Full Profile
       </Link>
     </div>
   );
