@@ -3,6 +3,19 @@ import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 
+// Add this type definition
+type AlumniProfile = {
+  id: string;
+  name: string;
+  role: string;
+  company: string;
+  location: string;
+  projects: string[];
+  interests: string[];
+  hobbies: string[];
+  contact_info: string;
+};
+
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,11 +60,50 @@ export default function SignUp() {
 
       if (profileError) throw profileError;
 
+      const newProfile: AlumniProfile = {
+        id: authData.user?.id ?? '',
+        name,
+        role,
+        company,
+        location,
+        projects: projects.split(','),
+        interests: interests.split(','),
+        hobbies: hobbies.split(','),
+        contact_info
+      };
+      await addToPinecone(newProfile);
+
       alert('Check your email for the confirmation link!');
       router.push('/login');
     } catch (error) {
       console.error('Signup error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred during signup');
+    }
+  };
+
+  const addToPinecone = async (profile: AlumniProfile) => {
+    try {
+      // Generate embedding
+      const embeddingResponse = await fetch('/api/generate-embedding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `${profile.name}: ${profile.role} at ${profile.company}. Interests: ${profile.interests.join(', ')}` }),
+      });
+      const { embedding } = await embeddingResponse.json();
+
+      // Add to Pinecone
+      const pineconeResponse = await fetch('/api/add-to-pinecone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: profile.id, embedding, metadata: { name: profile.name, role: profile.role, company: profile.company } }),
+      });
+
+      if (!pineconeResponse.ok) {
+        throw new Error('Failed to add profile to Pinecone');
+      }
+    } catch (error) {
+      console.error('Error adding profile to Pinecone:', error);
+      // Note: We're not setting an error state here to avoid disrupting the signup flow
     }
   };
 

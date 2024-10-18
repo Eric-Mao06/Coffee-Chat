@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { openai, pinecone } from '../../lib/clients';
 import { supabase } from '../../lib/supabase';
-import { generate_embedding } from '../../lib/openai';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -11,26 +11,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      console.log('Generating embedding for query:', q);
-      const embedding = await generate_embedding(q);
-      console.log('Embedding generated successfully');
-
-      console.log('Performing Supabase query');
-      const { data, error } = await supabase.rpc('match_alumni', {
-        query_embedding: embedding,
-        match_threshold: 0.7,
-        match_count: 10,
+      // Generate embedding for the query
+      const embeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: q,
       });
+      const queryEmbedding = embeddingResponse.data[0].embedding;
+
+      // Search Pinecone
+      const index = pinecone.Index('alumni-profiles');
+      const queryResponse = await index.query({
+        vector: queryEmbedding,
+        topK: 10,
+        includeMetadata: true,
+      });
+
+      // Fetch full profile data from Supabase
+      const ids = queryResponse.matches.map(match => match.id);
+      const { data: profiles, error } = await supabase
+        .from('alumni_profiles')
+        .select('*')
+        .in('id', ids);
 
       if (error) throw error;
 
-      console.log('Supabase query successful, returning data');
-      return res.status(200).json({ data });
+      // Rerank results and generate blurbs (we'll implement this in the next step)
+      const rankedResults = await rerankAndGenerateBlurbs(q, profiles);
+
+      return res.status(200).json({ data: rankedResults });
     } catch (error) {
       console.error('Search error:', error);
+      return res.status(500).json({ error: 'An error occurred during the search' });
     }
   } else {
     res.setHeader('Allow', ['GET']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
+}
+
+async function rerankAndGenerateBlurbs(query: string, profiles: any[]) {
+  const prompt = `
+Query: "${query}"
+
+Profiles:
+${profiles.map(p => `${p.name}: ${p.role} at ${p.company}. Interests: ${p.interests.join(', ')}`).join('\n')}
+
+For each profile, provide a relevance score from 0 to 10 and a brief explanation of why this profile matches the query. Format your response as JSON:
+[
+  {
+    "id": "profile_id",
+    "score": 0,
+    "blurb": "Explanation of match"
+  },
+  ...
+]
+`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const result = JSON.parse(completion.choices[0].message.content!);
+
+  // Combine the reranked results with the original profiles
+  const rankedProfiles = result.map((item: any) => {
+    const profile = profiles.find(p => p.id === item.id);
+    return { ...profile, score: item.score, blurb: item.blurb };
+  });
+
+  // Sort by score in descending order
+  rankedProfiles.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+
+  return rankedProfiles;
 }
