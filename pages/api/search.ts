@@ -11,14 +11,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      // Generate embedding for the query
       const embeddingResponse = await openai.embeddings.create({
         model: "text-embedding-ada-002",
         input: q,
       });
       const queryEmbedding = embeddingResponse.data[0].embedding;
 
-      // Search Pinecone
       const index = pinecone.Index('alumni-profiles');
       const queryResponse = await index.query({
         vector: queryEmbedding,
@@ -26,7 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         includeMetadata: true,
       });
 
-      // Fetch full profile data from Supabase
       const ids = queryResponse.matches.map(match => match.id);
       const { data: profiles, error } = await supabase
         .from('alumni_profiles')
@@ -35,7 +32,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) throw error;
 
-      // Rerank results and generate blurbs (we'll implement this in the next step)
       const rankedResults = await rerankAndGenerateBlurbs(q, profiles);
 
       return res.status(200).json({ data: rankedResults });
@@ -73,14 +69,10 @@ For each profile, provide a relevance score from 0 to 10 and a brief explanation
   });
 
   const result = JSON.parse(completion.choices[0].message.content!);
-
-  // Combine the reranked results with the original profiles
   const rankedProfiles = result.map((item: any) => {
     const profile = profiles.find(p => p.id === item.id);
     return { ...profile, score: item.score, blurb: item.blurb };
   });
-
-  // Sort by score in descending order
   rankedProfiles.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
   return rankedProfiles;

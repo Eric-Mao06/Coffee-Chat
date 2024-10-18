@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { AlumniProfile } from '../types';
 
-// Add this type definition
-type AlumniProfile = {
+/*type AlumniProfile = {
   id: string;
   name: string;
   role: string;
@@ -14,7 +14,7 @@ type AlumniProfile = {
   interests: string[];
   hobbies: string[];
   contact_info: string;
-};
+};*/
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -39,7 +39,6 @@ export default function SignUp() {
       });
       if (authError) throw authError;
 
-      // Generate embedding based on interests
       const interestsText = interests.split(',').map(i => i.trim()).join(', ');
 
       const { data: profileData, error: profileError } = await supabase
@@ -83,7 +82,6 @@ export default function SignUp() {
 
   const addToPinecone = async (profile: AlumniProfile) => {
     try {
-      // Generate embedding
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,7 +89,6 @@ export default function SignUp() {
       });
       const { embedding } = await embeddingResponse.json();
 
-      // Add to Pinecone
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,7 +100,6 @@ export default function SignUp() {
       }
     } catch (error) {
       console.error('Error adding profile to Pinecone:', error);
-      // Note: We're not setting an error state here to avoid disrupting the signup flow
     }
   };
 
