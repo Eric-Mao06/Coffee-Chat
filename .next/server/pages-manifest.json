@@ -5,6 +5,6 @@
   "/": "pages/index.js",
   "/search": "pages/search.js",
   "/signup": "pages/signup.js",
-  "/api/search": "pages/api/search.js",
-  "/api/random-alumni": "pages/api/random-alumni.js"
+  "/api/random-alumni": "pages/api/random-alumni.js",
+  "/api/search": "pages/api/search.js"
 }
