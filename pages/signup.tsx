@@ -4,18 +4,6 @@ import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { AlumniProfile } from '../types';
 
-/*type AlumniProfile = {
-  id: string;
-  name: string;
-  role: string;
-  company: string;
-  location: string;
-  projects: string[];
-  interests: string[];
-  hobbies: string[];
-  contact_info: string;
-};*/
-
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,8 +59,6 @@ export default function SignUp() {
         contact_info
       };
       await addToPinecone(newProfile);
-
-      alert('Check your email for the confirmation link!');
       router.push('/login');
     } catch (error) {
       console.error('Signup error:', error);

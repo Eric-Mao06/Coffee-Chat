@@ -1,3 +1,4 @@
+/* add calender feature for people to auto book meetings with alumni */
 import Link from 'next/link';
 import { AlumniProfile } from '../types';
 

@@ -76,8 +76,8 @@ export default function Search() {
             )}
             {dataReady && results.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.map((alumni) => (
-                  <AlumniCard key={alumni.id} alumni={alumni} />
+                {results.map((alumni, index) => (
+                  <AlumniCard key={`${alumni.id}-${index}`} alumni={alumni} />
                 ))}
               </div>
             )}
