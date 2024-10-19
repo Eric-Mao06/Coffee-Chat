@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { AlumniProfile } from '../types';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,6 @@ export default function SignUp() {
       });
       if (authError) throw authError;
 
-      // Generate embedding based on interests
       const interestsText = interests.split(',').map(i => i.trim()).join(', ');
 
       const { data: profileData, error: profileError } = await supabase
@@ -47,11 +47,45 @@ export default function SignUp() {
 
       if (profileError) throw profileError;
 
-      alert('Check your email for the confirmation link!');
+      const newProfile: AlumniProfile = {
+        id: authData.user?.id ?? '',
+        name,
+        role,
+        company,
+        location,
+        projects: projects.split(','),
+        interests: interests.split(','),
+        hobbies: hobbies.split(','),
+        contact_info
+      };
+      await addToPinecone(newProfile);
       router.push('/login');
     } catch (error) {
       console.error('Signup error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred during signup');
+    }
+  };
+
+  const addToPinecone = async (profile: AlumniProfile) => {
+    try {
+      const embeddingResponse = await fetch('/api/generate-embedding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: `${profile.name}: ${profile.role} at ${profile.company}. Interests: ${profile.interests.join(', ')}` }),
+      });
+      const { embedding } = await embeddingResponse.json();
+
+      const pineconeResponse = await fetch('/api/add-to-pinecone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: profile.id, embedding, metadata: { name: profile.name, role: profile.role, company: profile.company } }),
+      });
+
+      if (!pineconeResponse.ok) {
+        throw new Error('Failed to add profile to Pinecone');
+      }
+    } catch (error) {
+      console.error('Error adding profile to Pinecone:', error);
     }
   };
 

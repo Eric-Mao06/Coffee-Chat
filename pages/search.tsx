@@ -15,6 +15,7 @@ export default function Search() {
   const [error, setError] = useState<string | null>(null);
   const [randomError, setRandomError] = useState<string | null>(null);
   const [isFallback, setIsFallback] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -26,6 +27,7 @@ export default function Search() {
           const data = await response.json();
           if (response.ok) {
             setResults(data.data);
+            setDataReady(true);
             setIsFallback(data.fallback);
             if (data.data.length === 0) {
               setRandomLoading(true);
@@ -72,13 +74,14 @@ export default function Search() {
                 Note: We're currently using a basic search due to high demand. Results may be less accurate.
               </p>
             )}
-            {results.length > 0 ? (
+            {dataReady && results.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.map((alumni) => (
-                  <AlumniCard key={alumni.id} alumni={alumni} />
+                {results.map((alumni, index) => (
+                  <AlumniCard key={`${alumni.id}-${index}`} alumni={alumni} />
                 ))}
               </div>
-            ) : (
+            )}
+            {results.length === 0 && (
               <>
                 <p className="text-gray-600 text-center py-8">No results found. Here are two alumni profiles:</p>
                 {randomLoading ? (

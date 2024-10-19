@@ -47,22 +47,8 @@ export default function HomePage() {
     <Layout>
       <div className="container mx-auto mt-8 px-4">
         <div className="flex">
-          <aside className="w-64 pr-8">
-            <nav className="space-y-2">
-              <a href="#" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
-                <Home className="w-5 h-5" />
-                <span>Home</span>
-              </a>
-              <a href="#" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
-                <Users className="w-5 h-5" />
-                <span>Discover alumni</span>
-              </a>
-            </nav>
-          </aside>
-
           <main className="flex-1">
             <h1 className="text-4xl font-bold text-center mb-8">Find and be Found</h1>
-            
             <div className="max-w-2xl mx-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

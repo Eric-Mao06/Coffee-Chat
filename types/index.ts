@@ -8,4 +8,5 @@ export interface AlumniProfile {
   interests: string[];
   hobbies: string[];
   contact_info?: string;
+  blurb?: string;
 }
