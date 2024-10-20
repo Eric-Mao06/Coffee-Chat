@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Home, Users } from 'lucide-react';
+import { Search, Home, Users, ArrowUpRight } from 'lucide-react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import Layout from '../components/Layout';
 import AlumniCard from '../components/AlumniCard';
 import { AlumniProfile } from '../types';
 import { useRouter } from 'next/router';
+import { Textarea } from "@/components/ui/textarea"
 
 export default function HomePage() {
   const router = useRouter();
@@ -45,75 +46,70 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <div className="container mx-auto mt-8 px-4">
-        <div className="flex">
-          <main className="flex-1">
-            <h1 className="text-4xl font-bold text-center mb-8">Find and be Found</h1>
-            <div className="max-w-2xl mx-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input 
-                  type="text" 
-                  placeholder="Ask anything..." 
-                  className="pl-10 pr-4 py-2 w-full text-lg"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Button 
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2" 
-                  size="sm"
-                  onClick={handleSearch}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Searching...' : 'Ask'}
-                </Button>
-              </div>
+      <div className="container mx-auto px-4 flex items-center justify-center h-[calc(100vh-18rem)]">
+        <main className="w-full max-w-2xl">
+          <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center mb-8">
+            Find and be Found
+          </h1>
+          <div className="relative">
+            <Textarea 
+              placeholder="Ask anything..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              rows={4}
+            />
+            <Button 
+              className="absolute right-2 bottom-2" 
+              size="sm"
+              onClick={handleSearch}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Searching...' : 'Ask'}
+            </Button>
+          </div>
 
-              {error && <p className="text-red-500 mt-2">{error}</p>}
+          {error && <p className="text-red-500 mt-2">{error}</p>}
 
-              {searchResults.length > 0 && (
-                <div className="mt-8">
-                  <h2 className="text-2xl font-semibold mb-4">Search Results</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {searchResults.map((alumni) => (
-                      <AlumniCard key={alumni.id} alumni={alumni} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-8">
-                <h2 className="text-xl font-semibold mb-4">Try asking</h2>
-                <div className="space-y-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-left"
-                    onClick={() => handleTryAsking("How do I find alumni working in tech startups?")}
-                  >
-                    <span className="bg-yellow-100 text-yellow-800 p-1 rounded mr-2">💼</span>
-                    How do I find alumni working in tech startups?
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-left"
-                    onClick={() => handleTryAsking("Can you recommend alumni mentors in data science?")}
-                  >
-                    <span className="bg-green-100 text-green-800 p-1 rounded mr-2">🏆</span>
-                    Can you recommend alumni mentors in data science?
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-left"
-                    onClick={() => handleTryAsking("How do I connect with alumni for career advice?")}
-                  >
-                    <span className="bg-red-100 text-red-800 p-1 rounded mr-2">📢</span>
-                    How do I connect with alumni for career advice?
-                  </Button>
-                </div>
+          {searchResults.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-semibold mb-4">Search Results</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {searchResults.map((alumni) => (
+                  <AlumniCard key={alumni.id} alumni={alumni} />
+                ))}
               </div>
             </div>
-          </main>
-        </div>
+          )}
+
+          <div className="mt-4">
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button 
+                variant="tryAsking" 
+                size="xs"
+                onClick={() => handleTryAsking("Alumni working on tech startups")}
+              >
+                Alumni working on tech startups
+                <ArrowUpRight className="w-3 h-3 ml-1" />
+              </Button>
+              <Button 
+                variant="tryAsking" 
+                size="xs"
+                onClick={() => handleTryAsking("Can you recommend alumni mentors in data science?")}
+              >
+                Alumni mentors in data science
+                <ArrowUpRight className="w-3 h-3 ml-1" />
+              </Button>
+              <Button 
+                variant="tryAsking" 
+                size="xs"
+                onClick={() => handleTryAsking("Alumni who changed careers")}
+              >
+                Alumni who changed careers
+                <ArrowUpRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </main>
       </div>
     </Layout>
   );

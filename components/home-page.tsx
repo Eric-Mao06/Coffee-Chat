@@ -4,6 +4,7 @@ import React from 'react'
 import { Search, Home, Users } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 export function HomePageComponent() {
   return (
@@ -41,6 +42,10 @@ export function HomePageComponent() {
                 <Input 
                   type="text" 
                   placeholder="Ask anything..." 
+                  className="pl-10 pr-4 py-2 w-full text-lg"
+                />
+                <Textarea
+                  placeholder="Ask anything..."
                   className="pl-10 pr-4 py-2 w-full text-lg"
                 />
                 <Button className="absolute right-2 top-1/2 transform -translate-y-1/2" size="sm">

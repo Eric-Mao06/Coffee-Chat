@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { openai, pinecone } from '../../lib/clients';
 import { supabase } from '../../lib/supabase';
+import { AlumniProfile } from '../../types';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -22,15 +23,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         vector: queryEmbedding,
         topK: 10,
         includeMetadata: true,
+        filter: { score: { $gte: 0.5 } }
       });
 
-      const ids = queryResponse.matches.map(match => match.id);
-      const { data: profiles, error } = await supabase
-        .from('alumni_profiles')
-        .select('*')
-        .in('id', ids);
-
-      if (error) throw error;
+      let profiles;
+      if (queryResponse.matches.length > 0) {
+        const ids = queryResponse.matches.map(match => match.id);
+        const { data, error } = await supabase
+          .from('alumni_profiles')
+          .select('*')
+          .in('id', ids);
+        
+        if (error) throw error;
+        profiles = data;
+      } else {
+        const { data, error } = await supabase
+          .from('alumni_profiles')
+          .select('*');
+        
+        if (error) throw error;
+        profiles = data;
+      }
 
       const rankedResults = await rerankAndGenerateBlurbs(q, profiles);
 
@@ -45,19 +58,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function rerankAndGenerateBlurbs(query: string, profiles: any[]) {
+async function rerankAndGenerateBlurbs(query: string, profiles: AlumniProfile[]) {
   const prompt = `
 Query: "${query}"
 
 Profiles:
 ${profiles.map(p => `${p.name}: ${p.role} at ${p.company}. Interests: ${p.interests.join(', ')}`).join('\n')}
 
-For each profile, provide a relevance score from 0 to 10 and a brief explanation of why this profile matches the query. Format your response as JSON:
+For each profile, provide a relevance score from 0 to 10 and a brief explanation of why this profile might be relevant to the query. Be very lenient in your scoring, considering even loose connections. Use only the information provided in the profiles. Format your response as JSON:
 [
   {
     "id": "profile_id",
     "score": 0,
-    "blurb": "Explanation of match"
+    "blurb": "Explanation of potential relevance"
   },
   ...
 ]
@@ -71,8 +84,16 @@ For each profile, provide a relevance score from 0 to 10 and a brief explanation
   const result = JSON.parse(completion.choices[0].message.content!);
   const rankedProfiles = result.map((item: any) => {
     const profile = profiles.find(p => p.id === item.id);
-    return { ...profile, score: item.score, blurb: item.blurb };
-  });
+    if (profile) {
+      return { 
+        ...profile,  
+        score: item.score, 
+        blurb: item.blurb 
+      };
+    }
+    return null;
+  }).filter(Boolean);
+
   rankedProfiles.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
   return rankedProfiles;
