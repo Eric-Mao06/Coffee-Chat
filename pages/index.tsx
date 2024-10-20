@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Home, Users, ArrowUpRight } from 'lucide-react';
+import { Search, Home, Users, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import Layout from '../components/Layout';
@@ -46,10 +46,10 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 flex items-center justify-center h-[calc(100vh-18rem)]">
+      <div className="container mx-auto px-4 flex items-center justify-center h-[calc(100vh-14rem)]">
         <main className="w-full max-w-2xl">
-          <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl text-center mb-8">
-            Find and be Found
+          <h1 className="scroll-m-20 text-4xl font-bold tracking-tight lg:text-5xl text-center mb-8">
+            Find and be Found.
           </h1>
           <div className="relative">
             <Textarea 
@@ -64,11 +64,12 @@ export default function HomePage() {
               onClick={handleSearch}
               disabled={isLoading}
             >
-              {isLoading ? 'Searching...' : 'Ask'}
+              {isLoading ? 'Searching...' : 'Search'}
+              <ArrowRight className="w-3 h-3 ml-1" />
             </Button>
           </div>
 
-          {error && <p className="text-red-500 mt-2">{error}</p>}
+          {error && <p className="text-red-500/70 mt-2">{error}</p>}
 
           {searchResults.length > 0 && (
             <div className="mt-8">
