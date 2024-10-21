@@ -14,11 +14,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const index = pinecone.Index('alumni-profiles');
+    const metadataToUpsert = {
+      ...metadata,
+      resumeEmbedding: metadata.resumeEmbedding ? JSON.stringify(metadata.resumeEmbedding) : undefined
+    };
+
     await index.upsert([
       {
         id,
         values: embedding,
-        metadata,
+        metadata: metadataToUpsert,
       },
     ]);
 

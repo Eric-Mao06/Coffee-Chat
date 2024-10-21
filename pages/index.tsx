@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Home, Users, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -46,7 +46,7 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 flex items-center justify-center h-[calc(100vh-14rem)]">
+      <div className="container mx-auto px-4 flex items-center justify-center h-[calc(100vh-12rem)]">
         <main className="w-full max-w-2xl">
           <h1 className="scroll-m-20 text-4xl font-bold tracking-tight lg:text-5xl text-center mb-8">
             Find and be Found.

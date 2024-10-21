@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '../lib/AuthContext';
 import { Button } from "@/components/ui/button"
 
@@ -7,32 +8,43 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="p-4">
-        <nav className="container mx-auto flex justify-end items-center">
-          {user ? (
-            <>
-              <span className="mr-4">Welcome, {user.email}</span>
-              <Button
-                onClick={signOut}
-                variant="destructive"
-              >
-                Log Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" asChild className="mr-2">
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/signup">Sign Up</Link>
-              </Button>
-            </>
-          )}
+        <nav className="container mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center">
+            <Image 
+              src="/favicon.png" 
+              alt="Logo" 
+              width={40} 
+              height={40} 
+              style={{ width: 'auto', height: 'auto' }}
+            />
+          </Link>
+          <div>
+            {user ? (
+              <>
+                <span className="mr-4">Welcome, {user.email}</span>
+                <Button
+                  onClick={signOut}
+                  variant="destructive"
+                >
+                  Log Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild className="mr-2">
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">Sign Up</Link>
+                </Button>
+              </>
+            )}
+          </div>
         </nav>
       </header>
 

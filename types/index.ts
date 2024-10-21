@@ -9,4 +9,5 @@ export interface AlumniProfile {
   hobbies: string[];
   contact_info?: string;
   blurb?: string;
+  resume_embedding?: number[] | null;
 }
