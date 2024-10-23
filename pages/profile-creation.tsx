@@ -20,9 +20,10 @@ export default function ProfileCreation() {
   
     try {
       if (!user) throw new Error('No user found');
-      
+      console.log('Fetching LinkedIn profile...');
       const response = await fetch(`/api/linkedin-profile?linkedInUrl=${encodeURIComponent(linkedInUrl)}`);
       const data = await response.json();
+      console.log('LinkedIn profile data received:', data);
   
       if (!response.ok) throw new Error(data.error || 'Failed to fetch LinkedIn profile');
       if (!data.person) throw new Error('No profile data received');
@@ -44,7 +45,7 @@ export default function ProfileCreation() {
             `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
           ).join('\n') || ''}
       `;
-  
+      console.log('Generating embedding...');
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,11 +53,13 @@ export default function ProfileCreation() {
       });
   
       if (!embeddingResponse.ok) {
+        console.error('Embedding generation failed:', await embeddingResponse.text());
         throw new Error('Failed to generate embedding');
       }
   
       const { embedding } = await embeddingResponse.json();
-  
+      console.log('Embedding generated successfully');
+      console.log('Inserting profile into Supabase...');
       const profileData = await supabase
         .from('alumni_profiles')
         .insert([
@@ -78,14 +81,30 @@ export default function ProfileCreation() {
             experience: person.positions?.positionHistory?.map((pos: { title: string; companyName: string }) => 
               `${pos.title} at ${pos.companyName}`
             ) || [],
-            embeddings: JSON.stringify({ basic: embedding }),
+            embeddings: embedding, 
           }
         ])
         .select()
         .single();
+      console.log('Supabase insert attempt details:', {
+        userId: user.id,
+        name: `${person.firstName} ${person.lastName}`,
+        embeddingLength: embedding.length,
+      });
 
-      if (profileData.error) throw profileData.error;
+      if (profileData.error) {
+        console.error('Supabase insertion failed:', {
+          error: profileData.error,
+          statusCode: profileData.error?.code,
+          details: profileData.error?.details,
+          hint: profileData.error?.hint,
+          message: profileData.error?.message
+        });
+        throw profileData.error;
+      }
+      console.log('Profile inserted into Supabase successfully');
   
+      console.log('Adding profile to Pinecone...');
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,19 +135,20 @@ export default function ProfileCreation() {
       });
   
       if (!pineconeResponse.ok) {
-        const errorData = await pineconeResponse.json();
+        const errorText = await pineconeResponse.text();
         console.error('Pinecone insertion failed:', {
           status: pineconeResponse.status,
           statusText: pineconeResponse.statusText,
-          error: errorData
+          error: errorText
         });
-        throw new Error(`Failed to add profile to vector database: ${errorData.error || pineconeResponse.statusText}`);
+        throw new Error(`Failed to add profile to vector database: ${errorText}`);
       }
+      console.log('Profile added to Pinecone successfully');
   
       setHasCompletedProfile(true);
       router.push('/');
     } catch (error) {
-      console.error('Profile creation error details:', {
+      console.error('Profile creation error:', {
         error,
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
@@ -142,6 +162,8 @@ export default function ProfileCreation() {
           errorMessage = 'Error processing profile data. Please try again.';
         } else if (error.message.includes('vector database') || error.message.includes('Pinecone')) {
           errorMessage = 'Error saving profile to search index. Please try again.';
+        } else if (error.message.includes('duplicate')) {
+          errorMessage = 'A profile already exists for this LinkedIn URL.';
         }
       }
       
