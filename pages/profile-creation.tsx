@@ -104,7 +104,7 @@ export default function ProfileCreation() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: insertedProfile.data.id,
+          id: insertedProfile.id, 
           embedding: embedding,
           metadata: {
             name: `${person.firstName} ${person.lastName}`,
