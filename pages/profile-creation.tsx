@@ -88,11 +88,18 @@ export default function ProfileCreation() {
   const addToPinecone = async (profile: AlumniProfile) => {
     try {
       console.log('Generating embedding for Pinecone...');
+      // Generate embedding for profile text
+      const profileText = `${profile.name}: ${profile.role} at ${profile.company}. 
+        Interests: ${profile.interests.join(', ')}. 
+        Projects: ${profile.projects.join(', ')}. 
+        Location: ${profile.location}`;
+      
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `${profile.name}: ${profile.role} at ${profile.company}. Interests: ${profile.interests.join(', ')}` }),
+        body: JSON.stringify({ text: profileText }),
       });
+      
       if (!embeddingResponse.ok) {
         throw new Error(`HTTP error! status: ${embeddingResponse.status}`);
       }
@@ -109,7 +116,11 @@ export default function ProfileCreation() {
             name: profile.name, 
             role: profile.role, 
             company: profile.company,
-            resumeEmbedding: profile.resume_embedding ? profile.resume_embedding : undefined
+            location: profile.location,
+            interests: profile.interests,
+            projects: profile.projects,
+            hobbies: profile.hobbies,
+            resume_embedding: profile.resume_embedding
           },
         }),
       });

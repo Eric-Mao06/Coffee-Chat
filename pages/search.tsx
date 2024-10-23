@@ -25,8 +25,9 @@ export default function Search() {
         try {
           const response = await fetch(`/api/search?q=${encodeURIComponent(q as string)}`);
           const data = await response.json();
+          
           if (response.ok) {
-            setResults(data.data);
+            setResults(data.data || []);
             setDataReady(true);
             setIsFallback(data.fallback);
             if (data.data.length === 0) {

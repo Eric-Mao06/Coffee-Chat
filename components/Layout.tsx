@@ -14,14 +14,8 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen flex flex-col">
       <header className="p-4">
         <nav className="container mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center">
-            <Image 
-              src="/favicon.png" 
-              alt="Logo" 
-              width={40} 
-              height={40} 
-              style={{ width: 'auto', height: 'auto' }}
-            />
+          <Link href="/" className="text-xl font-bold">
+            Linkd
           </Link>
           <div>
             {user ? (

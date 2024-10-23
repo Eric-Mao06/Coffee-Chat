@@ -6,14 +6,20 @@ import { Button } from "@/components/ui/button";
 
 export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { signInWithGoogle } = useAuth();
 
   const handleGoogleSignUp = async () => {
+    if (isLoading) return; 
+    
     try {
+      setIsLoading(true);
       await signInWithGoogle();
     } catch (error) {
       console.error('Google signup error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred during Google signup');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -26,10 +32,11 @@ export default function SignUp() {
           
           <Button
             onClick={handleGoogleSignUp}
+            disabled={isLoading}
             className="w-full flex items-center justify-center bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <FcGoogle className="w-5 h-5 mr-2" />
-            Sign up with Google
+            {isLoading ? 'Signing up...' : 'Sign up with Google'}
           </Button>
         </div>
       </div>
