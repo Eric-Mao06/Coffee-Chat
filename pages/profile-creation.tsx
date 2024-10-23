@@ -29,6 +29,7 @@ export default function ProfileCreation() {
       if (!data.person) throw new Error('No profile data received');
   
       const { person } = data;
+      console.log('Creating profile text...');
       const profileText = `
         Name: ${person.firstName} ${person.lastName}
         Role: ${person.headline || ''}
@@ -45,6 +46,7 @@ export default function ProfileCreation() {
             `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
           ).join('\n') || ''}
       `;
+  
       console.log('Generating embedding...');
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
@@ -53,63 +55,56 @@ export default function ProfileCreation() {
       });
   
       if (!embeddingResponse.ok) {
-        console.error('Embedding generation failed:', await embeddingResponse.text());
+        const errorText = await embeddingResponse.text();
+        console.error('Embedding generation failed:', errorText);
         throw new Error('Failed to generate embedding');
       }
   
       const { embedding } = await embeddingResponse.json();
       console.log('Embedding generated successfully');
-      console.log('Inserting profile into Supabase...');
-      const profileData = await supabase
+      console.log('Preparing Supabase insert...');
+  
+      const profileData = {
+        user_id: user.id,
+        name: `${person.firstName} ${person.lastName}`,
+        role: person.headline || '',
+        company: person.positions?.positionHistory?.[0]?.companyName || '',
+        location: person.location || '',
+        interests: person.skills || [],
+        projects: person.positions?.positionHistory?.map((pos: { description: string }) => pos.description).filter(Boolean) || [],
+        hobbies: [],
+        linkedin_url: linkedInUrl,
+        contact_info: linkedInUrl,
+        summary: person.summary || '',
+        education: person.schools?.educationHistory?.map((edu: { schoolName: string; degreeName?: string }) => 
+          `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
+        ) || [],
+        experience: person.positions?.positionHistory?.map((pos: { title: string; companyName: string }) => 
+          `${pos.title} at ${pos.companyName}`
+        ) || [],
+        embeddings: embedding,
+      };
+  
+      console.log('Inserting profile into Supabase...', { userId: user.id });
+      const { data: insertedProfile, error: insertError } = await supabase
         .from('alumni_profiles')
-        .insert([
-          {
-            user_id: user.id,
-            name: `${person.firstName} ${person.lastName}`,
-            role: person.headline || '',
-            company: person.positions?.positionHistory?.[0]?.companyName || '',
-            location: person.location || '',
-            interests: person.skills || [],
-            projects: person.positions?.positionHistory?.map((pos: { description: string }) => pos.description).filter(Boolean) || [],
-            hobbies: [],
-            linkedin_url: linkedInUrl,
-            contact_info: linkedInUrl,
-            summary: person.summary || '',
-            education: person.schools?.educationHistory?.map((edu: { schoolName: string; degreeName?: string }) => 
-              `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
-            ) || [],
-            experience: person.positions?.positionHistory?.map((pos: { title: string; companyName: string }) => 
-              `${pos.title} at ${pos.companyName}`
-            ) || [],
-            embeddings: embedding, 
-          }
-        ])
+        .insert([profileData])
         .select()
         .single();
-      console.log('Supabase insert attempt details:', {
-        userId: user.id,
-        name: `${person.firstName} ${person.lastName}`,
-        embeddingLength: embedding.length,
-      });
-
-      if (profileData.error) {
-        console.error('Supabase insertion failed:', {
-          error: profileData.error,
-          statusCode: profileData.error?.code,
-          details: profileData.error?.details,
-          hint: profileData.error?.hint,
-          message: profileData.error?.message
-        });
-        throw profileData.error;
+  
+      if (insertError) {
+        console.error('Supabase insertion error:', insertError);
+        throw insertError;
       }
-      console.log('Profile inserted into Supabase successfully');
+  
+      console.log('Profile inserted successfully:', insertedProfile);
   
       console.log('Adding profile to Pinecone...');
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: profileData.data.id,
+          id: insertedProfile.data.id,
           embedding: embedding,
           metadata: {
             name: `${person.firstName} ${person.lastName}`,
