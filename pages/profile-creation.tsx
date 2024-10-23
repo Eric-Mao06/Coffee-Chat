@@ -91,15 +91,26 @@ export default function ProfileCreation() {
         .insert([profileData])
         .select()
         .single();
-  
+
       if (insertError) {
         console.error('Supabase insertion error:', insertError);
         throw insertError;
       }
-  
-      console.log('Profile inserted successfully:', insertedProfile);
-  
-      console.log('Adding profile to Pinecone...');
+      console.log('Supabase response:', {
+        profile: insertedProfile,
+        error: insertError
+      });
+
+      if (!insertedProfile) {
+        console.error('No profile data returned from Supabase');
+        throw new Error('Failed to create profile - no data returned');
+      }
+
+      console.log('Adding profile to Pinecone...', {
+        profileId: insertedProfile.id,
+        embeddingLength: embedding.length
+      });
+
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
