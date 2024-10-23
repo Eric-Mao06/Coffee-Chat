@@ -7,132 +7,147 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function ProfileCreation() {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
-  const [company, setCompany] = useState('');
-  const [location, setLocation] = useState('');
-  const [projects, setProjects] = useState('');
-  const [interests, setInterests] = useState('');
-  const [hobbies, setHobbies] = useState('');
-  const [contact_info, setContactInfo] = useState('');
+  const [linkedInUrl, setLinkedInUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { user, setHasCompletedProfile } = useAuth();
-  const [resume, setResume] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState<string>('');
-
-  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setResume(file);
-      const text = await file.text();
-      setResumeText(text);
-    }
-  };
 
   const handleProfileCreation = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+  
     try {
       if (!user) throw new Error('No user found');
-
-      let resumeEmbedding = null;
-      if (resumeText) {
-        const embeddingResponse = await fetch('/api/generate-embedding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: resumeText }),
-        });
-        const { embedding } = await embeddingResponse.json();
-        resumeEmbedding = embedding;
-      }
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('alumni_profiles')
-        .insert([
-          {
-            user_id: user.id,
-            name,
-            role,
-            company,
-            location,
-            projects: projects.split(',').map(p => p.trim()),
-            interests: interests.split(',').map(i => i.trim()),
-            hobbies: hobbies.split(',').map(h => h.trim()),
-            contact_info,
-            resume_embedding: resumeEmbedding,
-          },
-        ]);
-
-      if (profileError) throw profileError;
-
-      const newProfile: AlumniProfile = {
-        id: user.id,
-        name,
-        role,
-        company,
-        location,
-        projects: projects.split(','),
-        interests: interests.split(','),
-        hobbies: hobbies.split(','),
-        contact_info,
-        resume_embedding: resumeEmbedding,
-      };
-      await addToPinecone(newProfile);
-      setHasCompletedProfile(true);
-      router.push('/');
-    } catch (error) {
-      console.error('Profile creation error:', error);
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred during profile creation');
-    }
-  };
-  const addToPinecone = async (profile: AlumniProfile) => {
-    try {
-      console.log('Generating embedding for Pinecone...');
-      // Generate embedding for profile text
-      const profileText = `${profile.name}: ${profile.role} at ${profile.company}. 
-        Interests: ${profile.interests.join(', ')}. 
-        Projects: ${profile.projects.join(', ')}. 
-        Location: ${profile.location}`;
       
+      const response = await fetch(`/api/linkedin-profile?linkedInUrl=${encodeURIComponent(linkedInUrl)}`);
+      const data = await response.json();
+  
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch LinkedIn profile');
+      if (!data.person) throw new Error('No profile data received');
+  
+      const { person } = data;
+      const profileText = `
+        Name: ${person.firstName} ${person.lastName}
+        Role: ${person.headline || ''}
+        Company: ${person.positions?.positionHistory?.[0]?.companyName || ''}
+        Location: ${person.location || ''}
+        Skills: ${person.skills?.join(', ') || ''}
+        Summary: ${person.summary || ''}
+        Experience: ${person.positions?.positionHistory
+          ?.map((pos: { title: string; companyName: string; description: string }) => 
+            `${pos.title} at ${pos.companyName}: ${pos.description || ''}`
+          ).join('\n') || ''}
+        Education: ${person.schools?.educationHistory
+          ?.map((edu: { schoolName: string; degreeName?: string }) => 
+            `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
+          ).join('\n') || ''}
+      `;
+  
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: profileText }),
       });
-      
+  
       if (!embeddingResponse.ok) {
-        throw new Error(`HTTP error! status: ${embeddingResponse.status}`);
+        throw new Error('Failed to generate embedding');
       }
+  
       const { embedding } = await embeddingResponse.json();
+  
+      const profileData = await supabase
+        .from('alumni_profiles')
+        .insert([
+          {
+            user_id: user.id,
+            name: `${person.firstName} ${person.lastName}`,
+            role: person.headline || '',
+            company: person.positions?.positionHistory?.[0]?.companyName || '',
+            location: person.location || '',
+            interests: person.skills || [],
+            projects: person.positions?.positionHistory?.map((pos: { description: string }) => pos.description).filter(Boolean) || [],
+            hobbies: [],
+            linkedin_url: linkedInUrl,
+            contact_info: linkedInUrl,
+            summary: person.summary || '',
+            education: person.schools?.educationHistory?.map((edu: { schoolName: string; degreeName?: string }) => 
+              `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
+            ) || [],
+            experience: person.positions?.positionHistory?.map((pos: { title: string; companyName: string }) => 
+              `${pos.title} at ${pos.companyName}`
+            ) || [],
+            embeddings: JSON.stringify({ basic: embedding }),
+          }
+        ])
+        .select()
+        .single();
 
-      console.log('Adding profile to Pinecone...');
+      if (profileData.error) throw profileData.error;
+  
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: profile.id, 
-          embedding, 
-          metadata: { 
-            name: profile.name, 
-            role: profile.role, 
-            company: profile.company,
-            location: profile.location,
-            interests: profile.interests,
-            projects: profile.projects,
-            hobbies: profile.hobbies,
-            resume_embedding: profile.resume_embedding
-          },
-        }),
+        body: JSON.stringify({
+          id: profileData.data.id,
+          embedding: embedding,
+          metadata: {
+            name: `${person.firstName} ${person.lastName}`,
+            role: person.headline || '',
+            company: person.positions?.positionHistory?.[0]?.companyName || '',
+            location: person.location || '',
+            interests: Array.isArray(person.skills) ? person.skills : [],
+            projects: person.positions?.positionHistory
+              ?.map((pos: { description: string }) => pos.description)
+              ?.filter(Boolean) || [],
+            hobbies: [],
+            summary: person.summary || '',
+            education: person.schools?.educationHistory
+              ?.map((edu: { schoolName: string; degreeName?: string }) => 
+                `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
+              ) || [],
+            experience: person.positions?.positionHistory
+              ?.map((pos: { title: string; companyName: string }) => 
+                `${pos.title} at ${pos.companyName}`
+              ) || []
+          }
+        })
       });
-
+  
       if (!pineconeResponse.ok) {
-        throw new Error(`Failed to add profile to Pinecone: ${pineconeResponse.statusText}`);
+        const errorData = await pineconeResponse.json();
+        console.error('Pinecone insertion failed:', {
+          status: pineconeResponse.status,
+          statusText: pineconeResponse.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to add profile to vector database: ${errorData.error || pineconeResponse.statusText}`);
       }
-
-      console.log('Profile added to Pinecone successfully');
+  
+      setHasCompletedProfile(true);
+      router.push('/');
     } catch (error) {
-      console.error('Error adding profile to Pinecone:', error);
-      throw error; 
+      console.error('Profile creation error details:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      let errorMessage = 'An unexpected error occurred';
+      if (error instanceof Error) {
+        if (error.message.includes('ScrapIn API')) {
+          errorMessage = 'Failed to fetch LinkedIn profile data. Please check your LinkedIn URL and try again.';
+        } else if (error.message.includes('embedding')) {
+          errorMessage = 'Error processing profile data. Please try again.';
+        } else if (error.message.includes('vector database') || error.message.includes('Pinecone')) {
+          errorMessage = 'Error saving profile to search index. Please try again.';
+        }
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -142,92 +157,27 @@ export default function ProfileCreation() {
         <h2 className="text-2xl mb-4">Complete Your Profile</h2>
         {error && <p className="text-red-500 mb-4">{error}</p>}
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
-            Full Name
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="name"
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="role">
-            Role
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="role"
-            type="text"
-            placeholder="Current Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="company">
-            Company
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="company"
-            type="text"
-            placeholder="Current Company"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="location">
-            Location
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="location"
-            type="text"
-            placeholder="City, Country"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="interests">
-            Interests
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="interests"
-            type="text"
-            placeholder="Interest1, Interest2, Interest3"
-            value={interests}
-            onChange={(e) => setInterests(e.target.value)}
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="resume">
-            Resume (optional)
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="linkedin">
+            LinkedIn Profile URL
           </label>
           <Input
-            id="resume"
-            type="file"
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={handleResumeUpload}
+            id="linkedin"
+            type="url"
+            placeholder="https://www.linkedin.com/in/yourprofile"
+            value={linkedInUrl}
+            onChange={(e) => setLinkedInUrl(e.target.value)}
+            required
+            pattern="https://www\.linkedin\.com/in/.*"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
         </div>
         <div className="flex items-center justify-between">
           <Button
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
             type="submit"
+            disabled={isLoading}
           >
-            Create Profile
+            {isLoading ? 'Creating Profile...' : 'Create Profile'}
           </Button>
         </div>
       </form>

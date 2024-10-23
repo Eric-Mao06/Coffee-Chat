@@ -18,14 +18,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       model: "text-embedding-3-small",
       input: q,
     });
+
     const index = pinecone.Index('alumni-profiles');
     const queryResponse = await index.query({
       vector: queryEmbedding.data[0].embedding,
       topK: 10,
       includeMetadata: true
     });
+
     if (queryResponse.matches && queryResponse.matches.length > 0) {
-      const profiles = queryResponse.matches.map(match => ({
+      const relevancePrompt = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{
+          role: "system",
+          content: "You are a helpful assistant that explains why a search result is relevant to a query. Keep explanations brief and natural, focusing on the most important matching aspects."
+        }, {
+          role: "user",
+          content: `For the search query "${q}", explain why each of these profiles is relevant (keep each explanation under 500 characters): ${queryResponse.matches.map(match => 
+            `\n- ${match.metadata?.name} (${match.metadata?.role} at ${match.metadata?.company})`
+          ).join('')}`
+        }]
+      });
+
+      const explanations = relevancePrompt.choices[0].message.content?.split('\n').filter(line => line.trim());
+
+      const profiles = queryResponse.matches.map((match, index) => ({
         id: match.id,
         name: match.metadata?.name || 'Unknown',
         role: match.metadata?.role || 'Unknown Role',
@@ -35,7 +52,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         projects: match.metadata?.projects || [],
         hobbies: match.metadata?.hobbies || [],
         resume_embedding: match.metadata?.resume_embedding || null,
-        blurb: `Match score: ${match.score?.toFixed(2)}`,
+        linkedin_url: match.metadata?.linkedin_url || null,  // Add this line
+        blurb: explanations?.[index] || `Match score: ${match.score?.toFixed(2)}`,
       }));
 
       return res.status(200).json({

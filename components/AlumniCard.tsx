@@ -55,9 +55,16 @@ export default function AlumniCard({ alumni }: AlumniCardProps) {
           )}
         </div>
       </div>
-      <Link href={`/profile/${alumni.id}`} className="text-blue-600 hover:text-blue-800">
-        View Full Profile
-      </Link>
+      {alumni.linkedin_url && (
+        <a 
+          href={alumni.linkedin_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#0077b5] hover:bg-[#006396] rounded-md transition-colors"
+        >
+          View LinkedIn Profile
+        </a>
+      )}
     </div>
   );
 }

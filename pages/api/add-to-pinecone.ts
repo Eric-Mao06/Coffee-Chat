@@ -14,22 +14,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const index = pinecone.Index('alumni-profiles');
-    const metadataToUpsert = {
-      ...metadata,
-      resumeEmbedding: metadata.resumeEmbedding ? JSON.stringify(metadata.resumeEmbedding) : undefined
-    };
-
-    await index.upsert([
-      {
-        id,
-        values: embedding,
-        metadata: metadataToUpsert,
-      },
-    ]);
+    await index.upsert([{
+      id: id,
+      values: embedding as number[],
+      metadata
+    }]);
 
     res.status(200).json({ message: 'Profile added to Pinecone successfully' });
-  } catch (error) {
-    console.error('Pinecone API error:', error);
-    res.status(500).json({ error: 'Error adding profile to Pinecone' });
+  } catch (error: any) {
+    console.error('Pinecone upsert error:', error);
+    res.status(500).json({ 
+      error: 'Error upserting to Pinecone',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }
