@@ -42,6 +42,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const explanations = relevancePrompt.choices[0].message.content?.split('\n').filter(line => line.trim());
 
+      const profileIds = queryResponse.matches.map(match => match.id);
+      const { data: supabaseProfiles, error: supabaseError } = await supabase
+        .from('alumni_profiles')
+        .select('id, linkedin_url')
+        .in('id', profileIds);
+
+      if (supabaseError) throw supabaseError;
+      const linkedInUrls = new Map(
+        supabaseProfiles.map(profile => [profile.id, profile.linkedin_url])
+      );
+
       const profiles = queryResponse.matches.map((match, index) => ({
         id: match.id,
         name: match.metadata?.name || 'Unknown',
@@ -52,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         projects: match.metadata?.projects || [],
         hobbies: match.metadata?.hobbies || [],
         resume_embedding: match.metadata?.resume_embedding || null,
-        linkedin_url: match.metadata?.linkedin_url || null,  // Add this line
+        linkedin_url: linkedInUrls.get(match.id) || null,
         blurb: explanations?.[index] || `Match score: ${match.score?.toFixed(2)}`,
       }));
 

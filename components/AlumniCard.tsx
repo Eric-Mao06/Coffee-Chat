@@ -7,6 +7,12 @@ interface AlumniCardProps {
 }
 
 export default function AlumniCard({ alumni }: AlumniCardProps) {
+  console.log('Alumni data:', {
+    name: alumni.name,
+    linkedin_url: alumni.linkedin_url,
+    typeof_url: typeof alumni.linkedin_url
+  });
+
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-xl font-bold mb-2">{alumni.name}</h2>
@@ -55,7 +61,7 @@ export default function AlumniCard({ alumni }: AlumniCardProps) {
           )}
         </div>
       </div>
-      {alumni.linkedin_url && (
+      {alumni.linkedin_url && alumni.linkedin_url !== 'null' ? (
         <a 
           href={alumni.linkedin_url}
           target="_blank"
@@ -64,6 +70,10 @@ export default function AlumniCard({ alumni }: AlumniCardProps) {
         >
           View LinkedIn Profile
         </a>
+      ) : (
+        <span className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-md">
+          No LinkedIn Profile Available
+        </span>
       )}
     </div>
   );

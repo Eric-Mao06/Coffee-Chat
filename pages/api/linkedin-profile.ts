@@ -23,7 +23,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   
     try {
-      // Add query parameter for apikey instead of using Authorization header
       const url = `https://api.scrapin.io/enrichment/profile?linkedInUrl=${encodeURIComponent(linkedInUrl)}&apikey=${apiKey}`;
       
       const response = await fetch(url, {
