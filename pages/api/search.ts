@@ -14,6 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    console.log('Embedding input (search query):', q);
+
     const queryEmbedding = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: q,
@@ -31,12 +33,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         model: "gpt-3.5-turbo",
         messages: [{
           role: "system",
-          content: "You are a helpful assistant that explains why a search result is relevant to a query. Keep explanations brief and natural, focusing on the most important matching aspects."
+          content: "You are a helpful assistant that explains why a search result is relevant to a query. Use both the metadata and the detailed profile text to provide comprehensive explanations. Keep explanations brief and natural, focusing on the most important matching aspects."
         }, {
           role: "user",
           content: `For the search query "${q}", explain why each of these profiles is relevant (keep each explanation under 500 characters): ${queryResponse.matches.map(match => 
-            `\n- ${match.metadata?.name} (${match.metadata?.role} at ${match.metadata?.company})`
-          ).join('')}`
+              `\n- ${match.metadata?.name} (${match.metadata?.role} at ${match.metadata?.company})\n  Profile Text: ${match.metadata?.profile_text}`
+            ).join('')}`
         }]
       });
 
@@ -57,12 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: match.id,
         name: match.metadata?.name || 'Unknown',
         role: match.metadata?.role || 'Unknown Role',
-        company: match.metadata?.company || 'Unknown Company',
         location: match.metadata?.location || 'Unknown Location',
-        interests: match.metadata?.interests || [],
-        projects: match.metadata?.projects || [],
-        hobbies: match.metadata?.hobbies || [],
-        resume_embedding: match.metadata?.resume_embedding || null,
         linkedin_url: linkedInUrls.get(match.id) || null,
         blurb: explanations?.[index] || `Match score: ${match.score?.toFixed(2)}`,
       }));

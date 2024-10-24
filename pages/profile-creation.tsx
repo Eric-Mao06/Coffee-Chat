@@ -17,17 +17,17 @@ export default function ProfileCreation() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-  
+
     try {
       if (!user) throw new Error('No user found');
       console.log('Fetching LinkedIn profile...');
       const response = await fetch(`/api/linkedin-profile?linkedInUrl=${encodeURIComponent(linkedInUrl)}`);
       const data = await response.json();
       console.log('LinkedIn profile data received:', data);
-  
+
       if (!response.ok) throw new Error(data.error || 'Failed to fetch LinkedIn profile');
       if (!data.person) throw new Error('No profile data received');
-  
+
       const { person } = data;
       console.log('Creating profile text...');
       const profileText = `
@@ -35,7 +35,9 @@ export default function ProfileCreation() {
         Role: ${person.headline || ''}
         Company: ${person.positions?.positionHistory?.[0]?.companyName || ''}
         Location: ${person.location || ''}
-        Skills: ${person.skills?.join(', ') || ''}
+        Skills: ${person.skills?.map((skill: string | { name: string }) => 
+          typeof skill === 'string' ? skill : skill.name
+        ).join(', ') || ''}
         Summary: ${person.summary || ''}
         Experience: ${person.positions?.positionHistory
           ?.map((pos: { title: string; companyName: string; description: string }) => 
@@ -45,46 +47,38 @@ export default function ProfileCreation() {
           ?.map((edu: { schoolName: string; degreeName?: string }) => 
             `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
           ).join('\n') || ''}
+        Projects: ${person.projects?.join(', ') || ''}
+        Interests: ${person.interests?.join(', ') || ''}
+        Hobbies: ${person.hobbies?.join(', ') || ''}
+        Contact Information: ${person.contact_info || ''}
       `;
-  
+      console.log('Profile text being embedded:', profileText); // Added log
+
       console.log('Generating embedding...');
       const embeddingResponse = await fetch('/api/generate-embedding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: profileText }),
       });
-  
+
       if (!embeddingResponse.ok) {
         const errorText = await embeddingResponse.text();
         console.error('Embedding generation failed:', errorText);
         throw new Error('Failed to generate embedding');
       }
-  
+
       const { embedding } = await embeddingResponse.json();
       console.log('Embedding generated successfully');
-      console.log('Preparing Supabase insert...');
-  
+
+      // Store minimal data in Supabase
       const profileData = {
         user_id: user.id,
         name: `${person.firstName} ${person.lastName}`,
         role: person.headline || '',
-        company: person.positions?.positionHistory?.[0]?.companyName || '',
         location: person.location || '',
-        interests: person.skills || [],
-        projects: person.positions?.positionHistory?.map((pos: { description: string }) => pos.description).filter(Boolean) || [],
-        hobbies: [],
         linkedin_url: linkedInUrl,
-        contact_info: linkedInUrl,
-        summary: person.summary || '',
-        education: person.schools?.educationHistory?.map((edu: { schoolName: string; degreeName?: string }) => 
-          `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
-        ) || [],
-        experience: person.positions?.positionHistory?.map((pos: { title: string; companyName: string }) => 
-          `${pos.title} at ${pos.companyName}`
-        ) || [],
-        embeddings: embedding,
       };
-  
+
       console.log('Inserting profile into Supabase...', { userId: user.id });
       const { data: insertedProfile, error: insertError } = await supabase
         .from('alumni_profiles')
@@ -96,61 +90,54 @@ export default function ProfileCreation() {
         console.error('Supabase insertion error:', insertError);
         throw insertError;
       }
-      console.log('Supabase response:', {
-        profile: insertedProfile,
-        error: insertError
-      });
 
-      if (!insertedProfile) {
-        console.error('No profile data returned from Supabase');
-        throw new Error('Failed to create profile - no data returned');
-      }
+      // Prepare metadata for Pinecone with all scraped data
+      const metadata = {
+        name: `${person.firstName} ${person.lastName}`,
+        role: person.headline || '',
+        location: person.location || '',
+        summary: person.summary || '',
+        skills: Array.isArray(person.skills)
+          ? person.skills.map((skill: any) => 
+              typeof skill === 'string' ? skill : skill.name || 'Unknown Skill'
+            )
+          : [],
+        experience: person.positions?.positionHistory
+          ?.map((pos: { title: string; companyName: string; description: string }) => 
+            `${pos.title} at ${pos.companyName}: ${pos.description || ''}`
+          ) || [],
+        education: person.schools?.educationHistory
+          ?.map((edu: { schoolName: string; degreeName?: string }) => 
+            `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
+          ) || [],
+        projects: person.projects || [],
+        interests: person.interests || [],
+        hobbies: person.hobbies || [],
+        profile_text: profileText, // Added profileText to metadata
+      };
 
-      console.log('Adding profile to Pinecone...', {
-        profileId: insertedProfile.id,
-        embeddingLength: embedding.length
-      });
+      console.log('Pinecone metadata:', metadata);
 
+      // Store rich data in Pinecone
+      console.log('Storing metadata in Pinecone...');
       const pineconeResponse = await fetch('/api/add-to-pinecone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: insertedProfile.id, 
           embedding: embedding,
-          metadata: {
-            name: `${person.firstName} ${person.lastName}`,
-            role: person.headline || '',
-            company: person.positions?.positionHistory?.[0]?.companyName || '',
-            location: person.location || '',
-            interests: Array.isArray(person.skills) ? person.skills : [],
-            projects: person.positions?.positionHistory
-              ?.map((pos: { description: string }) => pos.description)
-              ?.filter(Boolean) || [],
-            hobbies: [],
-            summary: person.summary || '',
-            education: person.schools?.educationHistory
-              ?.map((edu: { schoolName: string; degreeName?: string }) => 
-                `${edu.schoolName}${edu.degreeName ? `: ${edu.degreeName}` : ''}`
-              ) || [],
-            experience: person.positions?.positionHistory
-              ?.map((pos: { title: string; companyName: string }) => 
-                `${pos.title} at ${pos.companyName}`
-              ) || []
-          }
+          metadata: metadata
         })
       });
-  
+
       if (!pineconeResponse.ok) {
         const errorText = await pineconeResponse.text();
-        console.error('Pinecone insertion failed:', {
-          status: pineconeResponse.status,
-          statusText: pineconeResponse.statusText,
-          error: errorText
-        });
-        throw new Error(`Failed to add profile to vector database: ${errorText}`);
+        console.error('Pinecone insertion failed:', errorText);
+        throw new Error('Failed to add profile to vector database');
       }
-      console.log('Profile added to Pinecone successfully');
-  
+
+      console.log('Profile successfully added to Pinecone');
+      
       setHasCompletedProfile(true);
       router.push('/');
     } catch (error) {
@@ -203,9 +190,8 @@ export default function ProfileCreation() {
           <Button
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
             type="submit"
-            disabled={isLoading}
           >
-            {isLoading ? 'Creating Profile...' : 'Create Profile'}
+            {isLoading ? 'Submitting...' : 'Submit'}
           </Button>
         </div>
       </form>
