@@ -30,10 +30,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (queryResponse.matches && queryResponse.matches.length > 0) {
       const relevancePrompt = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [{
           role: "system",
-          content: "You are a helpful assistant that explains why a search result is relevant to a query. Use both the metadata and the detailed profile text to provide comprehensive explanations. Keep explanations brief and natural, focusing on the most important matching aspects."
+          content: "You are a helpful assistant that explains why a search result is relevant to a query. Use both the metadata and the detailed profile text to provide comprehensive explanations. Keep explanations brief and natural, focusing on the most important matching aspects. Don't use special characters or try to format the output in any way."
         }, {
           role: "user",
           content: `For the search query "${q}", explain why each of these profiles is relevant (keep each explanation under 500 characters): ${queryResponse.matches.map(match => 
@@ -44,23 +44,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const explanations = relevancePrompt.choices[0].message.content?.split('\n').filter(line => line.trim());
 
-      const profileIds = queryResponse.matches.map(match => match.id);
-      const { data: supabaseProfiles, error: supabaseError } = await supabase
-        .from('alumni_profiles')
-        .select('id, linkedin_url')
-        .in('id', profileIds);
-
-      if (supabaseError) throw supabaseError;
-      const linkedInUrls = new Map(
-        supabaseProfiles.map(profile => [profile.id, profile.linkedin_url])
-      );
-
       const profiles = queryResponse.matches.map((match, index) => ({
         id: match.id,
         name: match.metadata?.name || 'Unknown',
         role: match.metadata?.role || 'Unknown Role',
         location: match.metadata?.location || 'Unknown Location',
-        linkedin_url: linkedInUrls.get(match.id) || null,
+        linkedin_url: match.metadata?.linkedin_url || null,
         blurb: explanations?.[index] || `Match score: ${match.score?.toFixed(2)}`,
       }));
 

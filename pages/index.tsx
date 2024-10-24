@@ -7,6 +7,7 @@ import AlumniCard from '../components/AlumniCard';
 import { AlumniProfile } from '../types';
 import { useRouter } from 'next/router';
 import { Textarea } from "@/components/ui/textarea"
+import Link from 'next/link'
 
 export default function HomePage() {
   const router = useRouter();

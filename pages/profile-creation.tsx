@@ -80,6 +80,7 @@ export default function ProfileCreation() {
       };
 
       console.log('Inserting profile into Supabase...', { userId: user.id });
+      console.log('Profile data:', profileData);
       const { data: insertedProfile, error: insertError } = await supabase
         .from('alumni_profiles')
         .insert([profileData])
@@ -96,6 +97,7 @@ export default function ProfileCreation() {
         name: `${person.firstName} ${person.lastName}`,
         role: person.headline || '',
         location: person.location || '',
+        linkedin_url: linkedInUrl, 
         summary: person.summary || '',
         skills: Array.isArray(person.skills)
           ? person.skills.map((skill: any) => 
@@ -113,7 +115,7 @@ export default function ProfileCreation() {
         projects: person.projects || [],
         interests: person.interests || [],
         hobbies: person.hobbies || [],
-        profile_text: profileText, // Added profileText to metadata
+        profile_text: profileText,
       };
 
       console.log('Pinecone metadata:', metadata);
